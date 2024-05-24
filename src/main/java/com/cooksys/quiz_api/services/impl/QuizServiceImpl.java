@@ -11,6 +11,7 @@ import com.cooksys.quiz_api.entities.Question;
 import com.cooksys.quiz_api.entities.Quiz;
 import com.cooksys.quiz_api.mappers.QuestionMapper;
 import com.cooksys.quiz_api.mappers.QuizMapper;
+import com.cooksys.quiz_api.repositories.AnswerRepository;
 import com.cooksys.quiz_api.repositories.QuestionRepository;
 import com.cooksys.quiz_api.repositories.QuizRepository;
 import com.cooksys.quiz_api.services.QuizService;
@@ -28,6 +29,7 @@ public class QuizServiceImpl implements QuizService {
   private final QuizMapper quizMapper;
   private final QuestionRepository questionRepository;
   private final QuestionMapper questionMapper;
+  private final AnswerRepository answerRepository; // Declare AnswerRepository
 
   @Override
   public List<QuizResponseDto> getAllQuizzes() {
@@ -38,34 +40,20 @@ public class QuizServiceImpl implements QuizService {
   public QuizResponseDto createQuiz(QuizRequestDto quizRequestDto) {
     Quiz quiz = new Quiz();
     quiz.setName(quizRequestDto.getName());
-
-    // Save the quiz entity
+    List<Question> questions = quizRequestDto.getQuestions();
+    quiz.setQuestions(questions); // Set the questions for the quiz
     Quiz savedQuiz = quizRepository.save(quiz);
 
-    // Iterate through each question in the request DTO
-    for (QuestionRequestDto questionRequestDto : quizRequestDto.getQuestions()) {
-      // Create a new question entity and set its properties
-      Question question = new Question();
-      question.setText(questionRequestDto.getText());
-      question.setQuiz(savedQuiz); // Set the quiz for the question
-
-      // Save the question entity
-      Question savedQuestion = questionRepository.save(question);
-
-      // Iterate through each answer in the question request DTO
-      for (AnswerRequestDto answerRequestDto : questionRequestDto.getAnswers()) {
-        // Create a new answer entity and set its properties
-        Answer answer = new Answer();
-        answer.setText(answerRequestDto.getText());
-        answer.setCorrect(answerRequestDto.isCorrect());
-        answer.setQuestion(savedQuestion); // Set the question for the answer
-
-        // Save the answer entity
-        answerRepository.save(answer);
+    for (Question question : questions) {
+      question.setQuiz(savedQuiz); // Set the quiz for each question
+      List<Answer> answers = question.getAnswers();
+      for (Answer answer : answers) {
+        answer.setQuestion(question); // Set the question for each answer
+        answerRepository.save(answer); // Save each answer
       }
+      questionRepository.save(question); // Save each question
     }
 
-    // Map the saved quiz entity to a response DTO and return it
     return quizMapper.entityToDto(savedQuiz);
   }
   @Override
