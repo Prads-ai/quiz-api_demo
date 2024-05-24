@@ -38,10 +38,36 @@ public class QuizServiceImpl implements QuizService {
   public QuizResponseDto createQuiz(QuizRequestDto quizRequestDto) {
     Quiz quiz = new Quiz();
     quiz.setName(quizRequestDto.getName());
+
+    // Save the quiz entity
     Quiz savedQuiz = quizRepository.save(quiz);
+
+    // Iterate through each question in the request DTO
+    for (QuestionRequestDto questionRequestDto : quizRequestDto.getQuestions()) {
+      // Create a new question entity and set its properties
+      Question question = new Question();
+      question.setText(questionRequestDto.getText());
+      question.setQuiz(savedQuiz); // Set the quiz for the question
+
+      // Save the question entity
+      Question savedQuestion = questionRepository.save(question);
+
+      // Iterate through each answer in the question request DTO
+      for (AnswerRequestDto answerRequestDto : questionRequestDto.getAnswers()) {
+        // Create a new answer entity and set its properties
+        Answer answer = new Answer();
+        answer.setText(answerRequestDto.getText());
+        answer.setCorrect(answerRequestDto.isCorrect());
+        answer.setQuestion(savedQuestion); // Set the question for the answer
+
+        // Save the answer entity
+        answerRepository.save(answer);
+      }
+    }
+
+    // Map the saved quiz entity to a response DTO and return it
     return quizMapper.entityToDto(savedQuiz);
   }
-
   @Override
   public QuizResponseDto deleteQuiz(Long id) throws NotFoundException {
     Optional<Quiz> optionalQuiz = quizRepository.findById(id);
