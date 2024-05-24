@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/quiz")
 public class QuizController {
 
-  private final QuizService quizService = null;
+  private final QuizService quizService;
 
   @GetMapping
   public List<QuizResponseDto> getAllQuizzes() {
