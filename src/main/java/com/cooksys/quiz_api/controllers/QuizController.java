@@ -50,7 +50,7 @@ public class QuizController {
   public QuizResponseDto addQuestionToQuiz(@PathVariable Long id, @RequestBody QuestionRequestDto questionRequestDto) throws NotFoundException {
     return quizService.addQuestion(id, questionRequestDto);
   }
-
+  
   @DeleteMapping("/{id}/delete/{questionId}")
   public QuestionResponseDto deleteQuestionFromQuiz(@PathVariable Long id, @PathVariable Long questionId) throws NotFoundException {
     return quizService.deleteQuestion(id, questionId);

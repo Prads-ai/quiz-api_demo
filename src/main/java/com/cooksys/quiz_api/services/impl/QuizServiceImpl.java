@@ -42,16 +42,17 @@ public class QuizServiceImpl implements QuizService {
     quiz.setName(quizRequestDto.getName());
     List<Question> questions = quizRequestDto.getQuestions();
     quiz.setQuestions(questions); // Set the questions for the quiz
-    Quiz savedQuiz = quizRepository.save(quiz);
+    Quiz savedQuiz = quizRepository.saveAndFlush(quiz);
 
     for (Question question : questions) {
       question.setQuiz(savedQuiz); // Set the quiz for each question
+      questionRepository.saveAndFlush(question); // Save each question
       List<Answer> answers = question.getAnswers();
       for (Answer answer : answers) {
         answer.setQuestion(question); // Set the question for each answer
-        answerRepository.save(answer); // Save each answer
+        answerRepository.saveAndFlush(answer); // Save each answer
       }
-      questionRepository.save(question); // Save each question
+      
     }
 
     return quizMapper.entityToDto(savedQuiz);
@@ -62,6 +63,13 @@ public class QuizServiceImpl implements QuizService {
     if (!optionalQuiz.isPresent()) {
       throw new NotFoundException("Quiz not found with id: " + id);
     }
+    Quiz quiz = optionalQuiz.get();
+    List<Question>questions = quiz.getQuestions();
+    
+    for(Question question: questions) {
+    	answerRepository.deleteByQuestionId(question.getId());
+    }
+    questionRepository.deleteByQuizId(id);
     Quiz quizToDelete = optionalQuiz.get();
     quizRepository.delete(quizToDelete);
     return quizMapper.entityToDto(quizToDelete);
@@ -101,42 +109,54 @@ public class QuizServiceImpl implements QuizService {
     if (!optionalQuiz.isPresent()) {
       throw new NotFoundException("Quiz not found with id: " + id);
     }
+    
     Quiz quiz = optionalQuiz.get();
     Question question = new Question();
     question.setText(questionRequestDto.getText());
-    List<Answer> answers = new ArrayList<>();
-    for (AnswerRequestDto answerRequestDto : questionRequestDto.getAnswers()) {
-      Answer answer = new Answer();
-      answer.setText(answerRequestDto.getText());
-      answer.setCorrect(answerRequestDto.isCorrect());
-      answer.setQuestion(question);
-      answers.add(answer);
-    }
-    question.setAnswers(answers);
-    question.setQuiz(quiz);
+    question.setAnswers(questionRequestDto.getAnswers());
+    List<Answer> answers = question.getAnswers();
     Question savedQuestion = questionRepository.save(question);
-    quiz.getQuestions().add(savedQuestion);
+    
+    for (Answer answer : answers) {
+      answer.setQuestion(question);
+      answerRepository.saveAndFlush(answer);
+    }
+    List<Question> questions = quiz.getQuestions(); 
+    questions.add(savedQuestion);
+    quiz.setQuestions(questions);
     quizRepository.save(quiz);
     return quizMapper.entityToDto(quiz);
   }
 
   @Override
-  public QuestionResponseDto deleteQuestion(Long id, Long questionId) throws NotFoundException {
-    Optional<Quiz> optionalQuiz = quizRepository.findById(id);
+  public QuestionResponseDto deleteQuestion(Long quizId, Long questionId) throws NotFoundException {
+    Optional<Quiz> optionalQuiz = quizRepository.findById(quizId);
     if (!optionalQuiz.isPresent()) {
-      throw new NotFoundException("Quiz not found with id: " + id);
+        throw new NotFoundException("Quiz not found with id: " + quizId);
     }
     Quiz quiz = optionalQuiz.get();
-    Optional<Question> optionalQuestion = quiz.getQuestions().stream()
+
+    List<Question> questions = quiz.getQuestions();
+    Optional<Question> optionalQuestion = questions.stream()
             .filter(question -> question.getId().equals(questionId))
             .findFirst();
     if (!optionalQuestion.isPresent()) {
-      throw new NotFoundException("Question not found with id: " + questionId + " in the quiz with id: " + id);
+        throw new NotFoundException("Question not found with id: " + questionId + " in the quiz with id: " + quizId);
     }
     Question questionToDelete = optionalQuestion.get();
-    quiz.getQuestions().remove(questionToDelete);
+
+    // Remove answers associated with the question
+    answerRepository.deleteByQuestionId(questionId);
+
+    // Remove the question from the quiz
+    questions.remove(questionToDelete);
+    quiz.setQuestions(questions);
+    quizRepository.save(quiz);
+
+    // Delete the question
     questionRepository.delete(questionToDelete);
+
     return questionMapper.entityToDto(questionToDelete);
-  }
+}
 
 }
